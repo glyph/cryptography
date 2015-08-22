@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-import sys
+import sys, os
 
 from _cffi_src.utils import build_ffi_for_binding, extra_link_args
 
@@ -12,6 +12,8 @@ from _cffi_src.utils import build_ffi_for_binding, extra_link_args
 def _get_openssl_libraries(platform):
     # OpenSSL goes by a different library name on different operating systems.
     if platform != "win32":
+        if os.environ.get("CRYPTOGRAPHY_STATIC_OPENSSL"):
+            return []
         # In some circumstances, the order in which these libs are
         # specified on the linker command-line is significant;
         # libssl must come before libcrypto
@@ -79,5 +81,15 @@ ffi = build_ffi_for_binding(
     pre_include=_OSX_PRE_INCLUDE,
     post_include=_OSX_POST_INCLUDE,
     libraries=_get_openssl_libraries(sys.platform),
-    extra_link_args=extra_link_args(sys.platform),
+    extra_compile_args=[
+        "-I{0}/include".format(os.environ["CRYPTOGRAPHY_STATIC_OPENSSL"]),
+    ]
+    if os.environ.get("CRYPTOGRAPHY_STATIC_OPENSSL")
+    else [],
+    extra_link_args=extra_link_args(sys.platform) + [
+        fmt.format(os.environ["CRYPTOGRAPHY_STATIC_OPENSSL"])
+        for fmt in ["{0}/lib/libssl.a", "{0}/lib/libcrypto.a"]
+    ]
+    if os.environ.get("CRYPTOGRAPHY_STATIC_OPENSSL")
+    else []
 )
